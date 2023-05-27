@@ -1,85 +1,55 @@
 ### Hi there 👋
 
 ```shell
-#!/bin/bash
+#!/bin/csh
 
-# 读取CSV文件
-filename="/Users/showen/Documents/cyy/shell/csv/folderInfo.csv"
+# 声明并初始化变量
+set satellite_dir="/Users/showen/Documents/cyy/shell/csh/pdf"
+set log_dir="/Users/showen/Documents/cyy/shell/csh/log"
+set warning_file="/Users/showen/Documents/cyy/shell/csh/warning.csv"
+set normal_count=0
+set warning_count=0
 
-# 声明数组
-fullName=()
-name=()
-fileLength=()
-extension=()
-creationTime=()
-lastWriteTime=()
+# 输出日志函数
+alias log_output 'echo \!:1 >> $log_dir/log'
 
-# 判断文件是否存在
-if [ ! -f "$filename" ]; then
-  echo "文件不存在: $filename"
-  exit 1
-fi
+# 输出开始处理的日志
+log_output "C:BGJ62058:PDF处理开始"
 
-# 使用awk命令逐行读取并提取各个字段，输出name和fileLength字段到标准输出
-list_output=$(awk -F',' 'NR>0 {
-    gsub(/"/, "", $1); fullName[NR-1]=$1;
-    gsub(/"/, "", $2); name[NR-1]=$2;
-    gsub(/"/, "", $3); fileLength[NR-1]=$3;
-    gsub(/"/, "", $4); extension[NR-1]=$4;
-    gsub(/"/, "", $5); creationTime[NR-1]=$5;
-    gsub(/"/, "", $6); lastWriteTime[NR-1]=$6;
-} END {
-    for (i=0; i<length(name); i++) {
-        mergedArray[i] = name[i];
-    }
-    for (i=0; i<length(fileLength); i++) {
-        mergedArray[length(name)+i] = fileLength[i];
-    }
-    for (i=0; i<length(mergedArray); i++) {
-        printf "%s ", mergedArray[i];
-    }
-    printf "\n";
-}' "$filename")
+# 判断 satellite_dir路径是否存在
+if (! -e $satellite_dir) then
+    log_output "F:BGJ62068:异常终了"
+    exit 100
+endif
 
-# 捕获AWK输出打印到控制台
-echo "=> $list_output"
+# 清空删除失败记录的 csv 文件
+rm -f $warning_file
 
-# Linux 服务器的地址和登录用户名密码
-SERVER="10.XXX.XX.X"
-FTP_USERNAME="XXX"
-FTP_PASSWORD="XXX"
-
-# 打印日志
-echo "从 FTP 服务器：$SERVER => ファイル取得。"
-
-# 远程文件夹路径
-REMOTE_DIR="/home/parallels/Documents"
-
-# 本地文件夹路径
-LOCAL_DIR="/Users/showen/Documents/cyy/shell/local_file"
-
-# 连接到 FTP 服务器并下载文件
-ftp -n "$SERVER" <<EOF
-    quote USER "$FTP_USERNAME"
-    quote PASS "$FTP_PASSWORD"
-    binary
-    passive off
-    cd "$REMOTE_DIR"
-    lcd "$LOCAL_DIR"
-    prompt off
-    mget *
-    quit
-EOF
-
-# 筛选和删除不在 list_output 中的文件
-for file in "$LOCAL_DIR"/*; do
-    filename=$(basename "$file")
-    if [[ $list_output != *"$filename"* ]]; then
-        echo "删除文件: $filename"
+# 检查文件夹是否为空
+set file_count = `ls -1 $satellite_dir | wc -l`
+if ($file_count) then
+    # 遍历目标文件夹下的文件
+    foreach file ($satellite_dir/*)
+        # 删除文件
         rm "$file"
-    fi
-done
+        if ($status == 0) then
+            @ normal_count++
+        else
+            @ warning_count++
+            echo "$file" >> $warning_file
+        endif
+    end
+endif
 
-# 打印日志
-echo "从 FTP 服务器：$SERVER => ファイル取得完了しました。"
+# 统计处理结果
+log_output "C:正常处理：$normal_count 件"
+log_output "C:警告处理：$warning_count 件"
+
+# 根据警告处理的数量确定退出状态码
+if ($warning_count) then
+    exit 1
+else
+    exit 0
+endif
+
 ```
