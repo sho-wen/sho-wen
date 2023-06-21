@@ -1,0 +1,26 @@
+#!/bin/bash
+
+# 设置变量
+SOURCE_FILE="issues.json"
+DESTINATION_OWNER="destination_owner"
+DESTINATION_REPO="destination_repo"
+GITHUB_TOKEN="your_access_token"
+
+# 从文件中读取问题列表
+ISSUES=$(cat "$SOURCE_FILE")
+
+# 逐个创建问题到目标仓库
+for row in $(echo "${ISSUES}" | jq -r '.[] | @base64'); do
+  _jq() {
+    echo "${row}" | base64 --decode | jq -r "${1}"
+  }
+
+  TITLE=$(_jq '.title')
+  BODY=$(_jq '.body')
+  CREATED_AT=$(_jq '.created_at')
+
+  # 创建问题到目标仓库
+  curl -sH "Authorization: Bearer $GITHUB_TOKEN" -H "Content-Type: application/json" -X POST -d "{\"title\":\"$TITLE\",\"body\":\"$BODY\",\"created_at\":\"$CREATED_AT\"}" "https://api.github.com/repos/$DESTINATION_OWNER/$DESTINATION_REPO/issues" >/dev/null
+done
+
+echo "Issues imported successfully."
